@@ -13,8 +13,8 @@ class NomNom
   end
 
   def log(message)
-    puts message
-    @result[:log] << message
+    puts "[ ] #{message}\n"
+    @result[:log] << "[ ] #{message}\n"
   end
 
   def download_and_extract_metadata(uri)
