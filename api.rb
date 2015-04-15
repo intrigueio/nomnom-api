@@ -6,6 +6,7 @@ require 'json'
 require 'pry'
 
 before do
+  puts "Params: #{params}"
 end
 
 get '/' do
@@ -38,5 +39,5 @@ end
 
 
 def check_authorized(key)
-  error 401 unless key =~ /^jcran/
+  error 401 unless key =~ /^intrigue/
 end
