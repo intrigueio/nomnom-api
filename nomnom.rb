@@ -1,15 +1,47 @@
 require 'yomu'
 require 'json'
-require 'anemone'
+require 'polipus'
+require 'polipus/plugins/cleaner'
+require 'redis'
+#require 'mongo'
+
 
 class NomNom
-
-  #attr_reader :result
 
   def initialize
     @result = {}
     @result[:entities] = []
     @result[:log] = ""
+
+    #@mongo = Mongo::Connection.new(pool_size: 15, pool_timeout: 5).db('crawler')
+
+    @options = {
+      # Redis connection
+      redis_options: {
+        host: 'localhost',
+        db: 5,
+        driver: 'hiredis'
+      },
+      # Page storage: pages is the name of the collection where
+      # pages will be stored
+      #storage: Polipus::Storage.mongo_store(@mongo, 'pages'),
+      # Use your custom user agent
+      user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9) AppleWebKit/537.71 (KHTML, like Gecko) Version/7.0 Safari/537.71',
+      # Use 5 threads
+      workers: 5,
+      # Queue overflow settings:
+      #  * No more than 5000 elements on the Redis queue
+      #  * Exceeded Items will stored on Mongo into 'rubygems_queue_overflow' collection
+      #  * Check cycle is done every 60 sec
+      #queue_items_limit: 5_000,
+      #queue_overflow_adapter: Polipus::QueueOverflow.mongo_queue(mongo, 'rubygems_queue_overflow'),
+      #queue_overflow_manager_check_time: 60,
+      # Logs goes to the stdout
+      logger: Logger.new(STDOUT)
+    }
+
+    Polipus::Plugin.register Polipus::Plugin::Cleaner, reset: true
+
   end
 
   def log(message)
@@ -21,15 +53,15 @@ class NomNom
 
     begin
 
-      #raise "Not Implemented"
-
       yomu = Yomu.new uri
+
       result = {
         :metadata => yomu.metadata,
         :text => yomu.text,
         :content_type => yomu.mimetype.content_type,
         :extensions => yomu.mimetype.extensions
       }
+
     rescue JSON::ParserError => e
       log "Error parsing uri: #{uri} #{e}"
     rescue URI::InvalidURIError => e
@@ -123,18 +155,12 @@ class NomNom
     depth = depth.to_i
 
     begin
-      Anemone.crawl(uri, {
-        :obey_robots => false,
-        :user_agent => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/40.0.2214.111 Safari/537.36",
-        :depth_limit => depth,
-        :redirect_limit => 5,
-        :threads => 1,
-        :verbose => false } ) do |anemone|
+      Polipus.crawler("polipus", uri, @options) do |crawler|
 
         #
         # Spider!
         #
-        anemone.on_every_page do |page|
+        crawler.on_page_downloaded do |page|
 
           # XXX - Need to set up a recursive follow-redirect function
           if page.code == 301
@@ -167,8 +193,6 @@ class NomNom
             # Get the filetype for this page
             filetype = "#{page_url.split(".").last.gsub("/","")}".upcase
 
-            #log "Found filetype: #{filetype}"
-
             # A list of all filetypes we're capable of doing something with
             interesting_types = [
               "DOC","DOCX","EPUB","ICA","INDD","JPG","JPEG","MP3","MP4","ODG","ODP","ODS","ODT","PDF","PNG","PPS","PPSX","PPT","PPTX","PUB","RDP","SVG","SVGZ","SXC","SXI","SXW","TIF","TXT","WPD","XLS","XLSX"]
@@ -178,17 +202,21 @@ class NomNom
 
               result = download_and_extract_metadata page_url
 
-              #@task_log.good "Got result #{result}"
-              #_create_entity("Info", :name => "Metadata in #{page_url}", :content => result[:metadata])
-
               if result
+
+                _create_entity "Info", :name => "Metadata for #{page_url}",  :content => result[:metadata]
+
 
                 ###
                 ### PDF
                 ###
                 if result[:content_type] == "application/pdf"
 
-                  _create_entity "File", { :type => "PDF",
+                  #
+                  # Create a file entity
+                  #
+                  _create_entity "File", {
+                    :type => "PDF",
                     :name => page_url,
                     :created => result[:metadata]["Creation-Date"],
                     :last_modified => result[:metadata]["Last-Modified"]
@@ -200,6 +228,9 @@ class NomNom
 
                 end
 
+                #
+                # Look in the content
+                #
                 _create_entity "Info", :name => "Metadata for #{page_url}",  :content => result[:metadata]
 
                 # Look for entities in the text
@@ -208,7 +239,8 @@ class NomNom
               else
                 log "No result received. See logs for details"
               end
-            else
+
+            else # not a recognized type
               parse_entities_from_content(page_url, page_body)
             end
 
@@ -224,9 +256,8 @@ class NomNom
     # For now, we catch everything. Parsing is a messy messy beast
     # XXX - ugh
 
-    #rescue Exception => e
-    #  log "Encountered error: #{e.class} #{e}"
     end #end begin
+
   @result
   end # crawl_and_parse
 

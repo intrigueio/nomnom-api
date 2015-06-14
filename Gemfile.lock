@@ -1,24 +1,42 @@
 GEM
   remote: https://rubygems.org/
   specs:
-    anemone (0.7.2)
-      nokogiri (>= 1.3.0)
-      robotex (>= 1.0.0)
+    bson (3.1.0-java)
     coderay (1.1.0)
+    domain_name (0.5.24)
+      unf (>= 0.0.5, < 1.0.0)
     ffi (1.9.8-java)
-    json (1.8.2-java)
+    hiredis (0.6.0-java)
+    http-cookie (1.0.2)
+      domain_name (~> 0.5)
+    json (1.8.3-java)
     method_source (0.8.2)
     mime-types (1.25.1)
+    mongo (2.0.5)
+      bson (~> 3.0)
     nokogiri (1.6.6.2-java)
+    polipus (0.4.0)
+      hiredis (~> 0.5, >= 0.4.5)
+      http-cookie (~> 1.0, >= 1.0.1)
+      nokogiri (~> 1.6, >= 1.6.0)
+      redis (~> 3.0, >= 3.0.4)
+      redis-bloomfilter (~> 0.0, >= 0.0.3)
+      redis-queue (~> 0.0, >= 0.0.4)
     pry (0.10.1-java)
       coderay (~> 1.1.0)
       method_source (~> 0.8.1)
       slop (~> 3.4)
       spoon (~> 0.0)
-    rack (1.6.0)
+    rack (1.6.1)
     rack-protection (1.5.3)
       rack
-    robotex (1.0.0)
+    redis (3.2.1)
+    redis-bloomfilter (0.0.3)
+      hiredis (~> 0.5, >= 0.5.2)
+      redis (~> 3.0, >= 3.0.4)
+    redis-queue (0.0.4)
+      hiredis (~> 0.5, >= 0.5.2)
+      redis (~> 3.0, >= 3.0.4)
     sinatra (1.4.6)
       rack (~> 1.4)
       rack-protection (~> 1.4)
@@ -27,6 +45,7 @@ GEM
     spoon (0.0.4)
       ffi
     tilt (2.0.1)
+    unf (0.1.4-java)
     yomu (0.2.2)
       json (~> 1.8)
       mime-types (~> 1.23)
@@ -35,7 +54,12 @@ PLATFORMS
   java
 
 DEPENDENCIES
-  anemone
+  mongo
+  polipus
   pry
+  redis
   sinatra
   yomu
+
+BUNDLED WITH
+   1.10.3

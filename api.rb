@@ -21,6 +21,7 @@ post '/single' do
 
   n = NomNom.new
   result = n.download_and_extract_metadata uri
+  
 JSON.pretty_generate(result)
 end
 
@@ -34,6 +35,7 @@ post '/crawl' do
 
   n = NomNom.new
   result = n.crawl_and_parse uri, depth
+
 JSON.pretty_generate(result )
 end
 
