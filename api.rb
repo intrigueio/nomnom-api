@@ -1,4 +1,3 @@
-
 require 'rubygems'
 require 'sinatra'
 require './nomnom'
@@ -8,6 +7,15 @@ require 'pry'
 before do
   puts "Params: #{params}"
 end
+
+##
+## http://redistogo.com/documentation/heroku
+##
+#configure do
+#  require 'redis'
+#  uri = URI.parse(ENV["REDISTOGO_URL"])
+#  REDIS = Redis.new(:host => uri.host, :port => uri.port, :password => uri.password)
+#end
 
 get '/' do
   "NomNom!"
@@ -21,7 +29,7 @@ post '/single' do
 
   n = NomNom.new
   result = n.download_and_extract_metadata uri
-  
+
 JSON.pretty_generate(result)
 end
 

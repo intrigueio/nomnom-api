@@ -3,8 +3,6 @@ require 'json'
 require 'polipus'
 require 'polipus/plugins/cleaner'
 require 'redis'
-#require 'mongo'
-
 
 class NomNom
 
@@ -12,8 +10,6 @@ class NomNom
     @result = {}
     @result[:entities] = []
     @result[:log] = ""
-
-    #@mongo = Mongo::Connection.new(pool_size: 15, pool_timeout: 5).db('crawler')
 
     @options = {
       # Redis connection
@@ -41,7 +37,6 @@ class NomNom
     }
 
     Polipus::Plugin.register Polipus::Plugin::Cleaner, reset: true
-
   end
 
   def log(message)
@@ -165,7 +160,6 @@ class NomNom
           # XXX - Need to set up a recursive follow-redirect function
           if page.code == 301
             log "301 Redirect on #{page.url}"
-            #Anemone.crawl(page.redirect_to)
           end
 
           #
@@ -194,9 +188,10 @@ class NomNom
             filetype = "#{page_url.split(".").last.gsub("/","")}".upcase
 
             # A list of all filetypes we're capable of doing something with
-            interesting_types = [
-              "DOC","DOCX","EPUB","ICA","INDD","JPG","JPEG","MP3","MP4","ODG","ODP","ODS","ODT","PDF","PNG","PPS","PPSX","PPT","PPTX","PUB","RDP","SVG","SVGZ","SXC","SXI","SXW","TIF","TXT","WPD","XLS","XLSX"]
-
+            interesting_types = [ "DOC","DOCX","EPUB","ICA","INDD","JPG","JPEG",
+              "MP3","MP4","ODG","ODP","ODS","ODT","PDF","PNG","PPS","PPSX","PPT",
+              "PPTX","PUB","RDP","SVG","SVGZ","SXC","SXI","SXW","TIF","TXT","WPD",
+              "XLS","XLSX"]
 
             if interesting_types.include? filetype
 
