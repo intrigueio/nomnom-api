@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'sinatra'
-require './nomnom'
 require 'json'
+require './nomnom'
 require 'pry'
 
 before do
@@ -44,7 +44,7 @@ post '/crawl' do
   n = NomNom.new
   result = n.crawl_and_parse uri, depth
 
-JSON.pretty_generate(result )
+JSON.pretty_generate(result)
 end
 
 

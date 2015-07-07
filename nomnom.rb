@@ -11,6 +11,8 @@ class NomNom
     @result[:entities] = []
     @result[:log] = ""
 
+    log "Nomnom initialized!"
+
     @options = {
       # Redis connection
       redis_options: {
@@ -144,7 +146,7 @@ class NomNom
 
 
   def crawl_and_parse(uri, depth=3)
-    log "Crawling: #{uri}"
+    log "crawling: #{uri}"
 
     # make sure we have an integer
     depth = depth.to_i
