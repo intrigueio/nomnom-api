@@ -252,7 +252,37 @@ class NomNom
 
     # For now, we catch everything. Parsing is a messy messy beast
     # XXX - ugh
-
+    rescue JSON::ParserError => e
+      log "Error parsing uri: #{uri} #{e}"
+    rescue URI::InvalidURIError => e
+      #
+      # XXX - This is an issue. We should catch this and ensure it's not
+      # due to an underscore / other acceptable character in the URI
+      # http://stackoverflow.com/questions/5208851/is-there-a-workaround-to-open-urls-containing-underscores-in-ruby
+      #
+      log "Unable to request URI: #{uri} #{e}"
+    rescue OpenSSL::SSL::SSLError => e
+      log "SSL connect error : #{e}"
+    rescue Errno::ECONNREFUSED => e
+      log "Unable to connect: #{e}"
+    rescue Errno::ECONNRESET => e
+      log "Unable to connect: #{e}"
+    rescue Net::HTTPBadResponse => e
+      log "Unable to connect: #{e}"
+    rescue Zlib::BufError => e
+      log "Unable to connect: #{e}"
+    rescue Zlib::DataError => e # "incorrect header check - may be specific to ruby 2.0"
+      log "Unable to connect: #{e}"
+    rescue EOFError => e
+      log "Unable to connect: #{e}"
+    rescue SocketError => e
+      log "Unable to connect: #{e}"
+    rescue Encoding::InvalidByteSequenceError => e
+      log "Encoding error: #{e}"
+    rescue Encoding::UndefinedConversionError => e
+      log "Encoding error: #{e}"
+    rescue EOFError => e
+      log "Unexpected end of file, consider looking at this file manually: #{url}"
     end #end begin
 
   @result
