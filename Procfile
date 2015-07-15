@@ -1,1 +1,1 @@
-web: bundle exec ruby api.rb -p $PORT
+web: bundle exec puma -b  unix:/tmp/nomnom.sock -r ./config.ru
