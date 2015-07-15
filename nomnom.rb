@@ -291,6 +291,8 @@ class NomNom
         end
     rescue Timeout::Error => e
       log "Hit #{timeout}. TIMING OUT!!"
+    rescue Timeout::ExitException => e
+      log "Hit #{timeout}. TIMING OUT!!"
     end
 
   @result
