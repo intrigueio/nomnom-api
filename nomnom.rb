@@ -145,145 +145,153 @@ class NomNom
   end
 
 
-  def crawl_and_parse(uri, depth=3)
+  def crawl_and_parse(uri, depth=2, timeout=800)
     log "crawling: #{uri}"
 
     # make sure we have an integer
     depth = depth.to_i
 
     begin
-      Polipus.crawler("polipus", uri, @options) do |crawler|
+        # have to set a timeout, because this can run forEVER.
+        timeout(timeout) do
 
-        #
-        # Spider!
-        #
-        crawler.on_page_downloaded do |page|
-
-          # XXX - Need to set up a recursive follow-redirect function
-          if page.code == 301
-            log "301 Redirect on #{page.url}"
-          end
+      begin
+        Polipus.crawler("polipus", uri, @options) do |crawler|
 
           #
-          # Create an entity for this uri
+          # Spider!
           #
-          #_create_entity("Url", { :name => page_url}) if opt_create_urls
+          crawler.on_page_downloaded do |page|
 
-          ###
-          ### XXX = UNTRUSTED INPUT. VERY LIKELY TO BREAK THINGS!
-          ### http://po-ru.com/diary/fixing-invalid-utf-8-in-ruby-revisited/
-          ###
+            # XXX - Need to set up a recursive follow-redirect function
+            if page.code == 301
+              log "301 Redirect on #{page.url}"
+            end
 
-          # Extract the url
-          page_url = ("#{page.url}").encode('UTF-8', {:invalid => :replace, :undef => :replace, :replace => '?'})
+            #
+            # Create an entity for this uri
+            #
+            #_create_entity("Url", { :name => page_url}) if opt_create_urls
 
-          # If we don't have a body, we can't do anything here.
-          next unless page.body
+            ###
+            ### XXX = UNTRUSTED INPUT. VERY LIKELY TO BREAK THINGS!
+            ### http://po-ru.com/diary/fixing-invalid-utf-8-in-ruby-revisited/
+            ###
 
-          # Extract the body
-          page_body = page.body.encode('UTF-8', {:invalid => :replace, :undef => :replace, :replace => '?'})
+            # Extract the url
+            page_url = ("#{page.url}").encode('UTF-8', {:invalid => :replace, :undef => :replace, :replace => '?'})
 
-          parse_metadata = true
-          if parse_metadata
+            # If we don't have a body, we can't do anything here.
+            next unless page.body
 
-            # Get the filetype for this page
-            filetype = "#{page_url.split(".").last.gsub("/","")}".upcase
+            # Extract the body
+            page_body = page.body.encode('UTF-8', {:invalid => :replace, :undef => :replace, :replace => '?'})
 
-            # A list of all filetypes we're capable of doing something with
-            interesting_types = [ "DOC","DOCX","EPUB","ICA","INDD","JPG","JPEG",
-              "MP3","MP4","ODG","ODP","ODS","ODT","PDF","PNG","PPS","PPSX","PPT",
-              "PPTX","PUB","RDP","SVG","SVGZ","SXC","SXI","SXW","TIF","TXT","WPD",
-              "XLS","XLSX"]
+            parse_metadata = true
+            if parse_metadata
 
-            if interesting_types.include? filetype
+              # Get the filetype for this page
+              filetype = "#{page_url.split(".").last.gsub("/","")}".upcase
 
-              result = download_and_extract_metadata page_url
+              # A list of all filetypes we're capable of doing something with
+              interesting_types = [ "DOC","DOCX","EPUB","ICA","INDD","JPG","JPEG",
+                "MP3","MP4","ODG","ODP","ODS","ODT","PDF","PNG","PPS","PPSX","PPT",
+                "PPTX","PUB","RDP","SVG","SVGZ","SXC","SXI","SXW","TIF","TXT","WPD",
+                "XLS","XLSX"]
 
-              if result
+              if interesting_types.include? filetype
 
-                _create_entity "Info", :name => "Metadata for #{page_url}",  :content => result[:metadata]
+                result = download_and_extract_metadata page_url
+
+                if result
+
+                  _create_entity "Info", :name => "Metadata for #{page_url}",  :content => result[:metadata]
 
 
-                ###
-                ### PDF
-                ###
-                if result[:content_type] == "application/pdf"
+                  ###
+                  ### PDF
+                  ###
+                  if result[:content_type] == "application/pdf"
+
+                    #
+                    # Create a file entity
+                    #
+                    _create_entity "File", {
+                      :type => "PDF",
+                      :name => page_url,
+                      :created => result[:metadata]["Creation-Date"],
+                      :last_modified => result[:metadata]["Last-Modified"]
+                    }
+
+                    _create_entity "Person", { :name => result[:metadata]["Author"], :source => page_url } if result[:metadata]["Author"]
+                    _create_entity "SoftwarePackage", { :name => result[:metadata]["producer"], :source => page_url } if result[:metadata]["producer"]
+                    _create_entity "SoftwarePackage", { :name => result[:metadata]["xmp:CreatorTool"], :source => page_url } if result[:metadata]["xmp:CreatorTool"]
+
+                  end
 
                   #
-                  # Create a file entity
+                  # Look in the content
                   #
-                  _create_entity "File", {
-                    :type => "PDF",
-                    :name => page_url,
-                    :created => result[:metadata]["Creation-Date"],
-                    :last_modified => result[:metadata]["Last-Modified"]
-                  }
+                  _create_entity "Info", :name => "Metadata for #{page_url}",  :content => result[:metadata]
 
-                  _create_entity "Person", { :name => result[:metadata]["Author"], :source => page_url } if result[:metadata]["Author"]
-                  _create_entity "SoftwarePackage", { :name => result[:metadata]["producer"], :source => page_url } if result[:metadata]["producer"]
-                  _create_entity "SoftwarePackage", { :name => result[:metadata]["xmp:CreatorTool"], :source => page_url } if result[:metadata]["xmp:CreatorTool"]
+                  # Look for entities in the text
+                  parse_entities_from_content(page_url, result[:text])
 
+                else
+                  log "No result received. See logs for details"
                 end
 
-                #
-                # Look in the content
-                #
-                _create_entity "Info", :name => "Metadata for #{page_url}",  :content => result[:metadata]
-
-                # Look for entities in the text
-                parse_entities_from_content(page_url, result[:text])
-
-              else
-                log "No result received. See logs for details"
+              else # not a recognized type
+                parse_entities_from_content(page_url, page_body)
               end
 
-            else # not a recognized type
+            else
+
+              log "Parsing as a regular file"
               parse_entities_from_content(page_url, page_body)
             end
 
-          else
+          end #end .on_every_page
+        end # end .crawl
 
-            log "Parsing as a regular file"
-            parse_entities_from_content(page_url, page_body)
-          end
+      # For now, we catch everything. Parsing is a messy messy beast
+      # XXX - ugh
+      rescue JSON::ParserError => e
+        log "Error parsing uri: #{uri} #{e}"
+      rescue URI::InvalidURIError => e
+        #
+        # XXX - This is an issue. We should catch this and ensure it's not
+        # due to an underscore / other acceptable character in the URI
+        # http://stackoverflow.com/questions/5208851/is-there-a-workaround-to-open-urls-containing-underscores-in-ruby
+        #
+        log "Unable to request URI: #{uri} #{e}"
+      rescue OpenSSL::SSL::SSLError => e
+        log "SSL connect error : #{e}"
+      rescue Errno::ECONNREFUSED => e
+        log "Unable to connect: #{e}"
+      rescue Errno::ECONNRESET => e
+        log "Unable to connect: #{e}"
+      rescue Net::HTTPBadResponse => e
+        log "Unable to connect: #{e}"
+      rescue Zlib::BufError => e
+        log "Unable to connect: #{e}"
+      rescue Zlib::DataError => e # "incorrect header check - may be specific to ruby 2.0"
+        log "Unable to connect: #{e}"
+      rescue EOFError => e
+        log "Unable to connect: #{e}"
+      rescue SocketError => e
+        log "Unable to connect: #{e}"
+      rescue Encoding::InvalidByteSequenceError => e
+        log "Encoding error: #{e}"
+      rescue Encoding::UndefinedConversionError => e
+        log "Encoding error: #{e}"
+      rescue EOFError => e
+        log "Unexpected end of file, consider looking at this file manually: #{url}"
+      end #end begin
 
-        end #end .on_every_page
-      end # end .crawl
-
-    # For now, we catch everything. Parsing is a messy messy beast
-    # XXX - ugh
-    rescue JSON::ParserError => e
-      log "Error parsing uri: #{uri} #{e}"
-    rescue URI::InvalidURIError => e
-      #
-      # XXX - This is an issue. We should catch this and ensure it's not
-      # due to an underscore / other acceptable character in the URI
-      # http://stackoverflow.com/questions/5208851/is-there-a-workaround-to-open-urls-containing-underscores-in-ruby
-      #
-      log "Unable to request URI: #{uri} #{e}"
-    rescue OpenSSL::SSL::SSLError => e
-      log "SSL connect error : #{e}"
-    rescue Errno::ECONNREFUSED => e
-      log "Unable to connect: #{e}"
-    rescue Errno::ECONNRESET => e
-      log "Unable to connect: #{e}"
-    rescue Net::HTTPBadResponse => e
-      log "Unable to connect: #{e}"
-    rescue Zlib::BufError => e
-      log "Unable to connect: #{e}"
-    rescue Zlib::DataError => e # "incorrect header check - may be specific to ruby 2.0"
-      log "Unable to connect: #{e}"
-    rescue EOFError => e
-      log "Unable to connect: #{e}"
-    rescue SocketError => e
-      log "Unable to connect: #{e}"
-    rescue Encoding::InvalidByteSequenceError => e
-      log "Encoding error: #{e}"
-    rescue Encoding::UndefinedConversionError => e
-      log "Encoding error: #{e}"
-    rescue EOFError => e
-      log "Unexpected end of file, consider looking at this file manually: #{url}"
-    end #end begin
+    rescue Timeout::Error
+        log "Hit #{timeout}. TIMING OUT"
+    end
 
   @result
   end # crawl_and_parse

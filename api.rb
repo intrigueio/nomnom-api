@@ -2,7 +2,7 @@ require 'rubygems'
 require 'sinatra'
 require 'json'
 require './nomnom'
-require 'pry'
+require 'timeout'
 
 before do
   puts "Params: #{params}"
