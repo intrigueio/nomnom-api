@@ -165,14 +165,14 @@ class NomNom
   end
 
 
-  def crawl_and_parse(uri, depth=3, timeout=30)
+  def crawl_and_parse(uri, depth=3, timeout=90)
     log "crawling: #{uri}"
 
     # make sure we have an integer
     depth = depth.to_i
 
     begin
-      timeout(90) do
+      timeout(timeout) do
 
         Polipus.crawler("polipus-#{SecureRandom.hex}", uri, @options) do |crawler|
 
