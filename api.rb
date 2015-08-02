@@ -23,19 +23,14 @@ end
 
 post '/single' do
   check_authorized params["key"]
-
   return 500 unless params["uri"] =~ /^http/
   uri = params["uri"]
 
   json_result = "nil"
   begin
-    timeout(30) do
-      n = NomNom.new
-      result = n.download_and_extract_metadata uri
-      json_result = JSON.pretty_generate(result)
-    end
-  rescue Timeout::Error => e
-    puts "TIMED OUT"
+    n = NomNom.new
+    result = n.download_and_extract_metadata uri
+    json_result = JSON.pretty_generate(result)
   rescue JSON::ParserError => e
     puts "ERROR PARSING JSON"
   end
@@ -53,13 +48,9 @@ post '/crawl' do
 
   json_result = "nil"
   begin
-    timeout(90) do
-      n = NomNom.new
-      result = n.crawl_and_parse uri, depth
-      json_result = JSON.pretty_generate(result)
-    end
-  rescue Timeout::Error => e
-    puts "TIMED OUT"
+    n = NomNom.new
+    result = n.crawl_and_parse uri, depth, 90
+    json_result = JSON.pretty_generate(result)
   rescue JSON::ParserError => e
     puts "ERROR PARSING JSON"
   end

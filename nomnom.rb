@@ -165,112 +165,118 @@ class NomNom
   end
 
 
-  def crawl_and_parse(uri, depth=3)
+  def crawl_and_parse(uri, depth=3, timeout=30)
     log "crawling: #{uri}"
 
     # make sure we have an integer
     depth = depth.to_i
 
     begin
-      Polipus.crawler("polipus-#{SecureRandom.hex}", uri, @options) do |crawler|
+      timeout(90) do
 
-        #
-        # Spider!
-        #
-        crawler.on_page_downloaded do |page|
-
-          # XXX - Need to set up a recursive follow-redirect function
-          if page.code == 301
-            log "301 Redirect on #{page.url}"
-          end
+        Polipus.crawler("polipus-#{SecureRandom.hex}", uri, @options) do |crawler|
 
           #
-          # Create an entity for this uri
+          # Spider!
           #
-          #_create_entity("Url", { :name => page_url}) if opt_create_urls
+          crawler.on_page_downloaded do |page|
 
-          ###
-          ### XXX = UNTRUSTED INPUT. VERY LIKELY TO BREAK THINGS!
-          ### http://po-ru.com/diary/fixing-invalid-utf-8-in-ruby-revisited/
-          ###
+            # XXX - Need to set up a recursive follow-redirect function
+            if page.code == 301
+              log "301 Redirect on #{page.url}"
+            end
 
-          # Extract the url
-          page_url = ("#{page.url}").encode('UTF-8', {:invalid => :replace, :undef => :replace, :replace => '?'})
+            #
+            # Create an entity for this uri
+            #
+            #_create_entity("Url", { :name => page_url}) if opt_create_urls
 
-          # If we don't have a body, we can't do anything here.
-          next unless page.body
+            ###
+            ### XXX = UNTRUSTED INPUT. VERY LIKELY TO BREAK THINGS!
+            ### http://po-ru.com/diary/fixing-invalid-utf-8-in-ruby-revisited/
+            ###
 
-          # Extract the body
-          page_body = page.body.encode('UTF-8', {:invalid => :replace, :undef => :replace, :replace => '?'})
+            # Extract the url
+            page_url = ("#{page.url}").encode('UTF-8', {:invalid => :replace, :undef => :replace, :replace => '?'})
 
-          parse_metadata = true
-          if parse_metadata
+            # If we don't have a body, we can't do anything here.
+            next unless page.body
 
-            # Get the filetype for this page
-            filetype = "#{page_url.split(".").last.gsub("/","")}".upcase
+            # Extract the body
+            page_body = page.body.encode('UTF-8', {:invalid => :replace, :undef => :replace, :replace => '?'})
 
-            # A list of all filetypes we're capable of doing something with
-            interesting_types = [ "DOC","DOCX","EPUB","ICA","INDD",
-              "MP3","MP4","ODG","ODP","ODS","ODT","PDF","PPS","PPSX","PPT",
-              "PPTX","PUB","RDP","SVG","SVGZ","SXC","SXI","SXW","TIF","TXT","WPD",
-              "XLS","XLSX"]
+            parse_metadata = true
+            if parse_metadata
 
-            if interesting_types.include? filetype
+              # Get the filetype for this page
+              filetype = "#{page_url.split(".").last.gsub("/","")}".upcase
 
-              result = download_and_extract_metadata page_url
+              # A list of all filetypes we're capable of doing something with
+              interesting_types = [ "DOC","DOCX","EPUB","ICA","INDD",
+                "MP3","MP4","ODG","ODP","ODS","ODT","PDF","PPS","PPSX","PPT",
+                "PPTX","PUB","RDP","SVG","SVGZ","SXC","SXI","SXW","TIF","TXT","WPD",
+                "XLS","XLSX"]
 
-              if result
+              if interesting_types.include? filetype
 
-                ###
-                ### PDF
-                ###
-                if result[:content_type] == "application/pdf" || filetype == "PDF"
+                result = download_and_extract_metadata page_url
 
-                  # Create a file entity
-                  _create_entity "File", {
-                    :type => "PDF",
-                    :name => page_url,
-                    :created => result[:metadata]["Creation-Date"],
-                    :last_modified => result[:metadata]["Last-Modified"]
-                  }
+                if result
 
-                  _create_entity "Person", { :name => result[:metadata]["Author"], :source => page_url } if result[:metadata]["Author"]
-                  _create_entity "SoftwarePackage", { :name => result[:metadata]["producer"], :source => page_url } if result[:metadata]["producer"]
-                  _create_entity "SoftwarePackage", { :name => result[:metadata]["xmp:CreatorTool"], :source => page_url } if result[:metadata]["xmp:CreatorTool"]
+                  ###
+                  ### PDF
+                  ###
+                  if result[:content_type] == "application/pdf" || filetype == "PDF"
+
+                    # Create a file entity
+                    _create_entity "File", {
+                      :type => "PDF",
+                      :name => page_url,
+                      :created => result[:metadata]["Creation-Date"],
+                      :last_modified => result[:metadata]["Last-Modified"]
+                    }
+
+                    _create_entity "Person", { :name => result[:metadata]["Author"], :source => page_url } if result[:metadata]["Author"]
+                    _create_entity "SoftwarePackage", { :name => result[:metadata]["producer"], :source => page_url } if result[:metadata]["producer"]
+                    _create_entity "SoftwarePackage", { :name => result[:metadata]["xmp:CreatorTool"], :source => page_url } if result[:metadata]["xmp:CreatorTool"]
+
+                  else
+                    _create_entity "Info", :name => "Metadata for #{page_url}",  :content => result[:metadata]
+                  end
+
+                  #
+                  # Look in the content
+                  #
+                  #_create_entity "Info", :name => "Metadata for #{page_url}",  :content => result[:metadata]
+
+                  # Look for entities in the text
+                  parse_entities_from_content(page_url, result[:text])
 
                 else
-                  _create_entity "Info", :name => "Metadata for #{page_url}",  :content => result[:metadata]
+                  log "No result received. See logs for details"
                 end
 
-                #
-                # Look in the content
-                #
-                #_create_entity "Info", :name => "Metadata for #{page_url}",  :content => result[:metadata]
-
-                # Look for entities in the text
-                parse_entities_from_content(page_url, result[:text])
-
-              else
-                log "No result received. See logs for details"
+              else # not a recognized type
+                parse_entities_from_content(page_url, page_body)
               end
 
-            else # not a recognized type
+            else
+
+              log "Parsing as a regular file"
               parse_entities_from_content(page_url, page_body)
             end
 
-          else
+          end #end .on_every_page
+        end # end .crawl
 
-            log "Parsing as a regular file"
-            parse_entities_from_content(page_url, page_body)
-          end
+      # For now, we catch everything. Parsing is a messy messy beast
+      # XXX - ugh
 
-        end #end .on_every_page
-      end # end .crawl
-
-    # For now, we catch everything. Parsing is a messy messy beast
-    # XXX - ugh
-
-  rescue URI::InvalidURIError => e
+    end # end timeout
+    rescue Timeout::Error => e
+      log_bad "TIMED OUT: #{e}"
+      return @result
+    rescue URI::InvalidURIError => e
       log_bad "ERROR: #{e}"
       log_bad "moving on"
     end #end begin

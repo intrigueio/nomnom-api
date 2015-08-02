@@ -16,4 +16,4 @@ unless depth
 end
 
 x=NomNom.new
-x.crawl_and_parse uri, depth
+x.crawl_and_parse uri, depth, 900

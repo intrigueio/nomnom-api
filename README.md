@@ -63,4 +63,5 @@ jcran intrigue-nomnom jruby-1.7.19@intrigue-nomnom: [20150730]$ bundle exec jrub
 [ ] Parsing text from https://www.whitehouse.gov/1600/eeob
 [ ] Parsing text from https://www.whitehouse.gov/1600/camp-david
 [ ] Parsing text from https://www.whitehouse.gov/1600/air-force-one
+...
 ````
