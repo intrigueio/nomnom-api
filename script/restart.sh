@@ -1,3 +1,3 @@
 #!/bin/bash
 
-bundle exec puma -C config/puma.rb
+bundle exec jruby -J-Xmx2048m `which puma` -C config/puma-tcp.rb

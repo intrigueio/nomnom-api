@@ -24,6 +24,7 @@ GEM
       method_source (~> 0.8.1)
       slop (~> 3.4)
       spoon (~> 0.0)
+    puma (2.12.2-java)
     rack (1.6.1)
     rack-protection (1.5.3)
       rack
@@ -53,6 +54,7 @@ PLATFORMS
 DEPENDENCIES
   polipus
   pry
+  puma
   redis
   sinatra
   yomu

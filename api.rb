@@ -1,8 +1,8 @@
 require 'rubygems'
 require 'sinatra'
 require 'json'
-require './nomnom'
 require 'timeout'
+require_relative 'nomnom'
 
 before do
   puts "Params: #{params}"
@@ -27,10 +27,20 @@ post '/single' do
   return 500 unless params["uri"] =~ /^http/
   uri = params["uri"]
 
-  n = NomNom.new
-  result = n.download_and_extract_metadata uri
+  json_result = "nil"
+  begin
+    timeout(30) do
+      n = NomNom.new
+      result = n.download_and_extract_metadata uri
+      json_result = JSON.pretty_generate(result)
+    end
+  rescue Timeout::Error => e
+    puts "TIMED OUT"
+  rescue JSON::ParserError => e
+    puts "ERROR PARSING JSON"
+  end
 
-JSON.pretty_generate(result)
+return json_result
 end
 
 post '/crawl' do
@@ -39,14 +49,23 @@ post '/crawl' do
   return 500 unless params["uri"] =~ /^http/
   return 500 unless params["depth"] =~ /\d/
   uri = params["uri"]
-  depth = params["depth"] || 3
+  depth = params["depth"] || 2
 
-  n = NomNom.new
-  result = n.crawl_and_parse uri, depth
+  json_result = "nil"
+  begin
+    timeout(90) do
+      n = NomNom.new
+      result = n.crawl_and_parse uri, depth
+      json_result = JSON.pretty_generate(result)
+    end
+  rescue Timeout::Error => e
+    puts "TIMED OUT"
+  rescue JSON::ParserError => e
+    puts "ERROR PARSING JSON"
+  end
 
-JSON.pretty_generate(result)
+return json_result
 end
-
 
 def check_authorized(key)
   error 401 unless key =~ /^intrigue/
